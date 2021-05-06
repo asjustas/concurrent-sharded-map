@@ -26,13 +26,17 @@ func New() ConcurrentShardedMap {
 	return c
 }
 
-func (c ConcurrentShardedMap) Get(key string) interface{} {
+func (c ConcurrentShardedMap) Get(key string) (interface{}, bool) {
 	shard := c.getShard(key)
 	shard.lock.RLock()
 
 	defer shard.lock.RUnlock()
 
-	return shard.items[key]
+	if value, ok := shard.items[key]; ok {
+		return value, true
+	}
+
+	return nil, false
 }
 
 func (c ConcurrentShardedMap) Set(key string, data interface{}) {
