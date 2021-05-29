@@ -48,6 +48,17 @@ func (c ConcurrentShardedMap) Set(key string, data interface{}) {
 	shard.items[key] = data
 }
 
+func (c ConcurrentShardedMap) Delete(key string) {
+	shard := c.getShard(key)
+	shard.lock.Lock()
+
+	defer shard.lock.Unlock()
+
+	if _, ok := shard.items[key]; ok {
+		delete(shard.items, key)
+	}
+}
+
 func (c ConcurrentShardedMap) getShard(key string) (shard *Shard) {
 	hasher := sha1.New()
 	hasher.Write([]byte(key))
