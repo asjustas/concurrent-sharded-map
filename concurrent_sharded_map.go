@@ -2,6 +2,7 @@ package concurrent_sharded_map
 
 import (
 	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"sync"
 )
@@ -62,7 +63,7 @@ func (c ConcurrentShardedMap) Delete(key string) {
 func (c ConcurrentShardedMap) getShard(key string) (shard *Shard) {
 	hasher := sha1.New()
 	hasher.Write([]byte(key))
-	shardKey :=  fmt.Sprintf("%x", hasher.Sum(nil))[0:2]
+	shardKey := hex.EncodeToString(hasher.Sum(nil))[0:2]
 
 	return c[shardKey]
 }
