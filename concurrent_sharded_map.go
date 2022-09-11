@@ -1,26 +1,26 @@
 package concurrent_sharded_map
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
-	"fmt"
+	"hash/adler32"
+	"reflect"
 	"sync"
+	"unsafe"
 )
 
-type ConcurrentShardedMap map[string]*Shard
+type ConcurrentShardedMap map[int]*Shard
 
 type Shard struct {
 	items map[string]interface{}
-	lock *sync.RWMutex
+	lock  *sync.RWMutex
 }
 
 func New() ConcurrentShardedMap {
 	c := make(ConcurrentShardedMap, 256)
 
 	for i := 0; i < 256; i++ {
-		c[fmt.Sprintf("%02x", i)] = &Shard{
+		c[i] = &Shard{
 			items: make(map[string]interface{}, 2048),
-			lock: new(sync.RWMutex),
+			lock:  new(sync.RWMutex),
 		}
 	}
 
@@ -61,9 +61,14 @@ func (c ConcurrentShardedMap) Delete(key string) {
 }
 
 func (c ConcurrentShardedMap) getShard(key string) (shard *Shard) {
-	hasher := sha1.New()
-	hasher.Write([]byte(key))
-	shardKey := hex.EncodeToString(hasher.Sum(nil))[0:2]
+	checksum := adler32.Checksum(c.unsafeGetBytes(key))
 
-	return c[shardKey]
+	return c[int(checksum)%256]
+}
+
+// https://stackoverflow.com/questions/59209493/how-to-use-unsafe-get-a-byte-slice-from-a-string-without-memory-copy
+func (c ConcurrentShardedMap) unsafeGetBytes(s string) []byte {
+	return (*[0x7fff0000]byte)(unsafe.Pointer(
+		(*reflect.StringHeader)(unsafe.Pointer(&s)).Data),
+	)[:len(s):len(s)]
 }
