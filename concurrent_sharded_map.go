@@ -1,25 +1,22 @@
 package concurrent_sharded_map
 
 import (
-	"hash/adler32"
-	"reflect"
 	"sync"
-	"unsafe"
 )
 
-type ConcurrentShardedMap map[int]*Shard
+type ConcurrentShardedInt64Map map[int]*ShardInt64
 
-type Shard struct {
-	items map[string]interface{}
+type ShardInt64 struct {
+	items map[int64]interface{}
 	lock  *sync.RWMutex
 }
 
-func New() ConcurrentShardedMap {
-	c := make(ConcurrentShardedMap, 256)
+func NewInt64() ConcurrentShardedInt64Map {
+	c := make(ConcurrentShardedInt64Map, 256)
 
 	for i := 0; i < 256; i++ {
-		c[i] = &Shard{
-			items: make(map[string]interface{}, 2048),
+		c[i] = &ShardInt64{
+			items: make(map[int64]interface{}, 2048),
 			lock:  new(sync.RWMutex),
 		}
 	}
@@ -27,7 +24,7 @@ func New() ConcurrentShardedMap {
 	return c
 }
 
-func (c ConcurrentShardedMap) Get(key string) (interface{}, bool) {
+func (c ConcurrentShardedInt64Map) Get(key int64) (interface{}, bool) {
 	shard := c.getShard(key)
 	shard.lock.RLock()
 
@@ -40,7 +37,7 @@ func (c ConcurrentShardedMap) Get(key string) (interface{}, bool) {
 	return nil, false
 }
 
-func (c ConcurrentShardedMap) Set(key string, data interface{}) {
+func (c ConcurrentShardedInt64Map) Set(key int64, data interface{}) {
 	shard := c.getShard(key)
 	shard.lock.Lock()
 
@@ -49,7 +46,7 @@ func (c ConcurrentShardedMap) Set(key string, data interface{}) {
 	shard.items[key] = data
 }
 
-func (c ConcurrentShardedMap) Delete(key string) {
+func (c ConcurrentShardedInt64Map) Delete(key int64) {
 	shard := c.getShard(key)
 	shard.lock.Lock()
 
@@ -60,15 +57,6 @@ func (c ConcurrentShardedMap) Delete(key string) {
 	}
 }
 
-func (c ConcurrentShardedMap) getShard(key string) (shard *Shard) {
-	checksum := adler32.Checksum(c.unsafeGetBytes(key))
-
-	return c[int(checksum)%256]
-}
-
-// https://stackoverflow.com/questions/59209493/how-to-use-unsafe-get-a-byte-slice-from-a-string-without-memory-copy
-func (c ConcurrentShardedMap) unsafeGetBytes(s string) []byte {
-	return (*[0x7fff0000]byte)(unsafe.Pointer(
-		(*reflect.StringHeader)(unsafe.Pointer(&s)).Data),
-	)[:len(s):len(s)]
+func (c ConcurrentShardedInt64Map) getShard(key int64) (shard *ShardInt64) {
+	return c[int(key)%256]
 }
