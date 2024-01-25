@@ -2,9 +2,7 @@ package concurrent_sharded_map
 
 import (
 	"hash/adler32"
-	"reflect"
 	"sync"
-	"unsafe"
 )
 
 type ConcurrentShardedMap map[int]*Shard
@@ -61,14 +59,7 @@ func (c ConcurrentShardedMap) Delete(key string) {
 }
 
 func (c ConcurrentShardedMap) getShard(key string) (shard *Shard) {
-	checksum := adler32.Checksum(c.unsafeGetBytes(key))
+	checksum := adler32.Checksum([]byte(key))
 
 	return c[int(checksum)%256]
-}
-
-// https://stackoverflow.com/questions/59209493/how-to-use-unsafe-get-a-byte-slice-from-a-string-without-memory-copy
-func (c ConcurrentShardedMap) unsafeGetBytes(s string) []byte {
-	return (*[0x7fff0000]byte)(unsafe.Pointer(
-		(*reflect.StringHeader)(unsafe.Pointer(&s)).Data),
-	)[:len(s):len(s)]
 }
